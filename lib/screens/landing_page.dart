@@ -114,11 +114,32 @@ class _LandingPageState extends State<LandingPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      '2026년 2월 읽기표',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    // ✅ 타이틀 + 다음 달 버튼(우측 상단)
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            '2026년 2월 읽기표',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: '다음 달',
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('다음 달 기능은 준비중입니다.')),
+                            );
+                          },
+                          icon: const Icon(Icons.chevron_right),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
+
                     MonthGrid(
                       year: year,
                       month: month,
@@ -129,9 +150,13 @@ class _LandingPageState extends State<LandingPage> {
                       onTapDay: _onTapDay,
                     ),
                     const SizedBox(height: 16),
+
+                    // ✅ 하단 정보창(높이 10% 줄이기: padding/버튼/패널 컴팩트)
                     Card(
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        // ✅ 16 → 12로 줄여서 높이 감소
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -142,16 +167,23 @@ class _LandingPageState extends State<LandingPage> {
                                 done: _selectedDone,
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 10),
                             FilledButton(
+                              style: FilledButton.styleFrom(
+                                // ✅ 버튼 높이도 살짝 컴팩트하게
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 10),
+                                tapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                                visualDensity: VisualDensity.compact,
+                              ),
                               onPressed: plan == null
                                   ? null
                                   : (plan.hasVideo
                                       ? () => _onWatch(plan.videoUrl!)
                                       : _onRead),
                               child: Text(
-                                plan != null && plan.hasVideo ? '시청하기' : '읽기',
-                              ),
+                                  plan != null && plan.hasVideo ? '시청하기' : '읽기'),
                             ),
                           ],
                         ),
@@ -190,15 +222,22 @@ class _SelectedPanel extends StatelessWidget {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min, // ✅ 불필요한 확장 방지
       children: [
-        Text('선택 날짜: 2월 $day일',
-            style: const TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
+        Text(
+          '선택 날짜: 2월 $day일',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 6), // ✅ 8 → 6
         Text('할당량: $label'),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6), // ✅ 10 → 6
         Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Checkbox(value: done, onChanged: null),
+            Transform.scale(
+              scale: 0.9, // ✅ 체크박스 살짝 축소
+              child: Checkbox(value: done, onChanged: null),
+            ),
             const Text('완료'),
           ],
         ),
@@ -233,7 +272,8 @@ class MonthGrid extends StatefulWidget {
 }
 
 class _MonthGridState extends State<MonthGrid> {
-  static const week = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+  // ✅ 요일 한글 표기
+  static const week = ["일", "월", "화", "수", "목", "금", "토"];
 
   // 2026-02-01은 일요일(이미지 기준)
   int get startWeekdayIndex => 0;
@@ -246,9 +286,7 @@ class _MonthGridState extends State<MonthGrid> {
     return Column(
       children: [
         Row(
-          children: week
-              .map((w) => Expanded(child: _HeaderCell(text: w)))
-              .toList(),
+          children: week.map((w) => Expanded(child: _HeaderCell(text: w))).toList(),
         ),
         const SizedBox(height: 6),
         ...List.generate(rows, (r) {
@@ -262,7 +300,16 @@ class _MonthGridState extends State<MonthGrid> {
               }
 
               final selected = widget.selectedDay == day;
-              final label = widget.planLabelOfDay(day);
+
+              final baseLabel = widget.planLabelOfDay(day);
+
+              // ✅ 2026년 2월은 1일이 일요일(startWeekdayIndex=0)이라
+              // (day-1)%7==0 이면 일요일
+              final isSunday = ((day - 1) % 7 == 0);
+
+              // ✅ 일요일은 달력 셀에 '영상 시청'만 표시 (할당량이 있는 날만)
+              final label =
+                  (isSunday && baseLabel.isNotEmpty) ? '영상 시청' : baseLabel;
 
               return Expanded(
                 child: FutureBuilder<bool>(
@@ -345,24 +392,26 @@ class _DayCell extends StatelessWidget {
           children: [
             Align(
               alignment: Alignment.topLeft,
-              child: Text('$day',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold)),
+              child: Text(
+                '$day',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
             Align(
               alignment: Alignment.centerLeft,
               child: Padding(
-                padding: const EdgeInsets.only(top:16),
-              child: Text(
-                label,
-                style: const TextStyle(fontSize: 16, height: 1.1
+                padding: const EdgeInsets.only(top: 16),
+                child: Text(
+                  label,
+                  style: const TextStyle(fontSize: 16, height: 1.1),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
             Align(
               alignment: Alignment.topRight,
               child: Icon(
