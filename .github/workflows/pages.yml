@@ -33,6 +33,9 @@ jobs:
       # 레포 이름이 che2contents 이므로 base-href 맞춤
       - name: Build Web
         run: flutter build web --release --base-href /
+      - name: Add CNAME
+        run: echo "che2bible.kr" > build/web/CNAME
+
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
