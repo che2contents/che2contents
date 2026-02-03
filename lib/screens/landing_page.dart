@@ -102,7 +102,7 @@ class _LandingPageState extends State<LandingPage> {
             width: double.infinity,
             height: 160,
             child: Image.asset(
-              'assets/images/che2_banner.jpg',
+              'assets/images/che2_banner.png',
               fit: BoxFit.cover,
             ),
           ),
