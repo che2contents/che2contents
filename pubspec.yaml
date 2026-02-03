@@ -34,10 +34,16 @@ flutter:
 flutter_icons:
   android: true
   ios: true
+  windows: true
+  macos: true
+
   web:
     generate: true
-  windows:
-    generate: true
-  macos:
-    generate: true
+    image_path: "assets/images/che2_logo.png"
+    background_color: "#ffffff"
+    theme_color: "#795548"
+
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/images/che2_logo.png"
+
   image_path: "assets/images/che2_logo.png"
