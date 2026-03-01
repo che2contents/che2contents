@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../data/feb_plan_2026.dart';
+import '../data/mar_plan_2026.dart';
 import '../services/progress_store.dart';
+import '../services/audio_resolver.dart';
 import 'reading_screen.dart';
 
 class LandingPage extends StatefulWidget {
@@ -15,9 +16,10 @@ class LandingPage extends StatefulWidget {
 class _LandingPageState extends State<LandingPage> {
   final _store = ProgressStore();
 
+  // ✅ 2026년 3월만 보이게 고정
   final int year = 2026;
-  final int month = 2;
-  final int daysInMonth = 28;
+  final int month = 3;
+  final int daysInMonth = 31;
 
   int _selectedDay = 1;
   bool _selectedDone = false;
@@ -25,7 +27,7 @@ class _LandingPageState extends State<LandingPage> {
   String _dateKey(int day) =>
       "$year-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}";
 
-  DayPlan? _planFor(int day) => FebPlan2026.plan[_dateKey(day)];
+  DayPlan? _planFor(int day) => MarPlan2026.plan[_dateKey(day)];
 
   @override
   void initState() {
@@ -50,6 +52,13 @@ class _LandingPageState extends State<LandingPage> {
 
     final r = plan.ranges.first;
 
+    // ✅ 오디오 파일 경로 자동 생성 (없으면 null)
+    final audioAsset = AudioResolver.forRange(
+      book: r.book,
+      startChapter: r.startChapter,
+      endChapter: r.endChapter,
+    );
+
     final finished = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
@@ -60,6 +69,7 @@ class _LandingPageState extends State<LandingPage> {
             book: r.book,
             startChapter: r.startChapter,
             endChapter: r.endChapter,
+            audioAsset: audioAsset,
           ),
         ),
       ),
@@ -114,29 +124,9 @@ class _LandingPageState extends State<LandingPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ✅ 타이틀 + 다음 달 버튼(우측 상단)
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            '2026년 2월 읽기표',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: '다음 달',
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('다음 달 기능은 준비중입니다.')),
-                            );
-                          },
-                          icon: const Icon(Icons.chevron_right),
-                        ),
-                      ],
+                    const Text(
+                      '2026년 3월 읽기표',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
 
@@ -151,12 +141,9 @@ class _LandingPageState extends State<LandingPage> {
                     ),
                     const SizedBox(height: 16),
 
-                    // ✅ 하단 정보창(높이 10% 줄이기: padding/버튼/패널 컴팩트)
                     Card(
                       child: Padding(
-                        // ✅ 16 → 12로 줄여서 높이 감소
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -170,11 +157,8 @@ class _LandingPageState extends State<LandingPage> {
                             const SizedBox(width: 10),
                             FilledButton(
                               style: FilledButton.styleFrom(
-                                // ✅ 버튼 높이도 살짝 컴팩트하게
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 10),
-                                tapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 visualDensity: VisualDensity.compact,
                               ),
                               onPressed: plan == null
@@ -182,8 +166,7 @@ class _LandingPageState extends State<LandingPage> {
                                   : (plan.hasVideo
                                       ? () => _onWatch(plan.videoUrl!)
                                       : _onRead),
-                              child: Text(
-                                  plan != null && plan.hasVideo ? '시청하기' : '읽기'),
+                              child: Text(plan != null && plan.hasVideo ? '시청하기' : '읽기'),
                             ),
                           ],
                         ),
@@ -222,20 +205,20 @@ class _SelectedPanel extends StatelessWidget {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min, // ✅ 불필요한 확장 방지
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          '선택 날짜: 2월 $day일',
+          '선택 날짜: 3월 $day일',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 6), // ✅ 8 → 6
+        const SizedBox(height: 6),
         Text('할당량: $label'),
-        const SizedBox(height: 6), // ✅ 10 → 6
+        const SizedBox(height: 6),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Transform.scale(
-              scale: 0.9, // ✅ 체크박스 살짝 축소
+              scale: 0.9,
               child: Checkbox(value: done, onChanged: null),
             ),
             const Text('완료'),
@@ -272,11 +255,13 @@ class MonthGrid extends StatefulWidget {
 }
 
 class _MonthGridState extends State<MonthGrid> {
-  // ✅ 요일 한글 표기
   static const week = ["일", "월", "화", "수", "목", "금", "토"];
 
-  // 2026-02-01은 일요일(이미지 기준)
-  int get startWeekdayIndex => 0;
+  int get startWeekdayIndex {
+    final first = DateTime(widget.year, widget.month, 1);
+    // Monday=1 ... Sunday=7 → Sunday를 0으로 만들기 위해 %7
+    return first.weekday % 7;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -302,14 +287,10 @@ class _MonthGridState extends State<MonthGrid> {
               final selected = widget.selectedDay == day;
 
               final baseLabel = widget.planLabelOfDay(day);
+              final isSunday = ((day - 1 + startWeekdayIndex) % 7 == 0);
 
-              // ✅ 2026년 2월은 1일이 일요일(startWeekdayIndex=0)이라
-              // (day-1)%7==0 이면 일요일
-              final isSunday = ((day - 1) % 7 == 0);
-
-              // ✅ 일요일은 달력 셀에 '영상 시청'만 표시 (할당량이 있는 날만)
-              final label =
-                  (isSunday && baseLabel.isNotEmpty) ? '영상 시청' : baseLabel;
+              // 주일이면 label이 있어도 "영상 시청"으로 보여주기(요구 이미지 느낌 유지)
+              final label = (isSunday && baseLabel.isNotEmpty) ? baseLabel : baseLabel;
 
               return Expanded(
                 child: FutureBuilder<bool>(
@@ -394,10 +375,7 @@ class _DayCell extends StatelessWidget {
               alignment: Alignment.topLeft,
               child: Text(
                 '$day',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
             Align(

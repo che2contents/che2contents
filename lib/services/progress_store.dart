@@ -1,15 +1,15 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ProgressStore {
-  static const _prefix = "done_"; // done_2026-02-02
+  static String _key(String dateKey) => 'done:$dateKey';
 
   Future<bool> isDone(String dateKey) async {
-    final sp = await SharedPreferences.getInstance();
-    return sp.getBool("$_prefix$dateKey") ?? false;
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_key(dateKey)) ?? false;
   }
 
-  Future<void> setDone(String dateKey, bool value) async {
-    final sp = await SharedPreferences.getInstance();
-    await sp.setBool("$_prefix$dateKey", value);
+  Future<void> setDone(String dateKey, bool done) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_key(dateKey), done);
   }
 }
