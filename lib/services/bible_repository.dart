@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 
 class BibleRepository {
-  // assets/bible 아래 파일명에 맞게 추가/수정
   static const Map<String, String> _bookToAsset = {
     "창세기": "assets/bible/창세기.json",
     "출애굽기": "assets/bible/출애굽기.json",
@@ -15,46 +14,81 @@ class BibleRepository {
     "사무엘상": "assets/bible/사무엘상.json",
   };
 
-  Future<Map<String, dynamic>> loadBook(String book) async {
+  Future<dynamic> loadBook(String book) async {
     final path = _bookToAsset[book];
     if (path == null) {
       throw Exception('성경 JSON 매핑이 없습니다: $book');
     }
 
     final raw = await rootBundle.loadString(path);
-    final jsonMap = json.decode(raw);
-    if (jsonMap is! Map<String, dynamic>) {
-      throw Exception('JSON 형식이 올바르지 않습니다: $path');
-    }
-    return jsonMap;
+    return json.decode(raw);
   }
 
-  /// chapterVerses는 JSON 구조에 따라 조정이 필요할 수 있음.
-  /// 현재는 "chapters" 또는 "장" 같은 키를 기대하지 않고
-  /// 1) json[chapter.toString()] 형태
-  /// 2) json["chapters"][chapter.toString()] 형태
-  /// 둘 다 시도함.
-  List<String> chapterVerses(Map<String, dynamic> bookJson, int chapter) {
-    final key = chapter.toString();
+  List<String> chapterVerses(dynamic bookJson, int chapter) {
+    final key1 = chapter.toString();
+    final key2 = '${chapter}장';
 
-    dynamic node = bookJson[key];
-    node ??= (bookJson["chapters"] is Map ? (bookJson["chapters"] as Map)[key] : null);
+    dynamic node;
+
+    // 1) 최상위가 Map 인 경우
+    if (bookJson is Map) {
+      node = bookJson[key1] ?? bookJson[key2];
+
+      // chapters 아래에 있는 경우
+      if (node == null && bookJson['chapters'] is Map) {
+        final chapters = bookJson['chapters'] as Map;
+        node = chapters[key1] ?? chapters[key2];
+      }
+
+      // 장/본문 같은 다른 키 구조 탐색
+      if (node == null && bookJson['장'] is Map) {
+        final chapters = bookJson['장'] as Map;
+        node = chapters[key1] ?? chapters[key2];
+      }
+    }
+
+    // 2) 최상위가 List 인 경우
+    if (node == null && bookJson is List) {
+      for (final item in bookJson) {
+        if (item is Map) {
+          final c = item['chapter'] ?? item['장'];
+          if (c.toString() == key1) {
+            node = item['verses'] ?? item['본문'] ?? item;
+            break;
+          }
+        }
+      }
+    }
 
     if (node == null) return const [];
 
-    // node가 List면 바로 verses
+    // A. ["절1", "절2"] 형태
     if (node is List) {
       return node.map((e) => e.toString()).toList();
     }
 
-    // node가 Map이면 "verses" 키 우선
+    // B. {"1":"...", "2":"..."} 형태
     if (node is Map) {
-      final verses = node["verses"];
-      if (verses is List) {
-        return verses.map((e) => e.toString()).toList();
+      if (node['verses'] is List) {
+        return (node['verses'] as List).map((e) => e.toString()).toList();
       }
+
+      if (node['본문'] is List) {
+        return (node['본문'] as List).map((e) => e.toString()).toList();
+      }
+
+      // 절 번호를 key로 갖는 경우 정렬해서 반환
+      final entries = node.entries.toList()
+        ..sort((a, b) {
+          final ai = int.tryParse(a.key.toString().replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+          final bi = int.tryParse(b.key.toString().replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+          return ai.compareTo(bi);
+        });
+
+      return entries.map((e) => e.value.toString()).toList();
     }
 
-    return const [];
+    // C. 그냥 문자열 하나인 경우
+    return [node.toString()];
   }
 }
